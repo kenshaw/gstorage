@@ -85,8 +85,8 @@ func (p SignParams) String() string {
 // URLSigner provides a type that can generate signed URLs for use with Google
 // Cloud Storage.
 type URLSigner struct {
-	RSAPrivateKey *rsa.PrivateKey
-	ClientEmail   string
+	PrivateKey  *rsa.PrivateKey
+	ClientEmail string
 }
 
 // NewURLSigner creates a new URLSigner
@@ -118,7 +118,7 @@ func (u *URLSigner) SignParams(p *SignParams) (string, error) {
 	}
 
 	// sign
-	sig, err := rsa.SignPKCS1v15(rand.Reader, u.RSAPrivateKey, crypto.SHA256, h.Sum(nil))
+	sig, err := rsa.SignPKCS1v15(rand.Reader, u.PrivateKey, crypto.SHA256, h.Sum(nil))
 	if err != nil {
 		return "", err
 	}
