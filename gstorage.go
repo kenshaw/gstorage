@@ -6,6 +6,7 @@ import (
 	"crypto/rsa"
 	b64 "encoding/base64"
 	"net/url"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -43,10 +44,17 @@ type SignParams struct {
 	Object string
 }
 
+// sortHeaders is the sort type for sorting headers.
+type sortHeaders []string
+
+func (s sortHeaders) Len() int           { return len(s) }
+func (s sortHeaders) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
+func (s sortHeaders) Less(i, j int) bool { return strings.Compare(s[i], s[j]) < 0 }
+
 // HeaderString sorts the headers in order, returning an ordered, usable string
 // for use with signing.
 func (p SignParams) HeaderString() string {
-	h := make([]string, len(p.Headers))
+	h := make(sortHeaders, len(p.Headers))
 	headers := make(map[string]string)
 
 	var i int
@@ -60,6 +68,11 @@ func (p SignParams) HeaderString() string {
 	}
 
 	if len(h) != 0 {
+		sort.Sort(h)
+		for i, k := range h {
+			h[i] += ":" + strings.TrimSpace(headers[k])
+		}
+
 		return strings.Join(h, "\n") + "\n"
 	}
 
