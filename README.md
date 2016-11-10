@@ -8,4 +8,4 @@ Install in the normal way:
 go get -u github.com/knq/gstorage
 ```
 
-Please see [cmd/gsign/main.go](gsign) util for how to use it.
+Please see the [gsign](cmd/gsign/main.go) util for an example for signing URLs.
