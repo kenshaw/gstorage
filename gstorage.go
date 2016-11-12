@@ -13,8 +13,8 @@ import (
 )
 
 const (
-	// BaseURL is the base Google Storage URL.
-	BaseURL = "https://storage.googleapis.com"
+	// DefaultBaseURL is the base Google Storage URL.
+	DefaultBaseURL = "https://storage.googleapis.com"
 
 	// DefaultExpiration is the default expiration for signed URLs.
 	DefaultExpiration = 1 * time.Hour
@@ -22,6 +22,10 @@ const (
 
 // SignParams are the signing params for generating a signed URL.
 type SignParams struct {
+	// BaseURL is the URL to use for building the URL. If not supplied, then
+	// DefaultBaseURL will be used instead.
+	BaseURL string
+
 	// Method is the HTTP method (GET, PUT, ...).
 	Method string
 
@@ -153,21 +157,11 @@ func (u *URLSigner) Sign(method, hash, contentType, bucket, path string, headers
 	})
 }
 
-// MakeURL creates a signed URL for the method.
-func (u *URLSigner) MakeURL(method, bucket, path string, d time.Duration, headers map[string]string) (string, error) {
-	// set default expiration if 0
-	if d == 0 {
-		d = DefaultExpiration
-	}
-
-	// create signing params
-	exp := time.Now().Add(d)
-	p := &SignParams{
-		Method:     method,
-		Expiration: exp,
-		Headers:    headers,
-		Bucket:     bucket,
-		Object:     path,
+// Make makes a URL for the specified signing params.
+func (u *URLSigner) Make(p *SignParams, d time.Duration) (string, error) {
+	// set default expiration if duration supplied
+	if d != 0 {
+		p.Expiration = time.Now().Add(d)
 	}
 
 	// create sig
@@ -179,10 +173,26 @@ func (u *URLSigner) MakeURL(method, bucket, path string, d time.Duration, header
 	// create url values
 	v := url.Values{}
 	v.Set("GoogleAccessId", u.ClientEmail)
-	v.Set("Expires", strconv.FormatInt(exp.Unix(), 10))
+	v.Set("Expires", strconv.FormatInt(p.Expiration.Unix(), 10))
 	v.Set("Signature", sig)
 
-	return BaseURL + p.ObjectPath() + "?" + v.Encode(), nil
+	// base
+	baseURL := p.BaseURL
+	if baseURL == "" {
+		baseURL = DefaultBaseURL
+	}
+
+	return baseURL + p.ObjectPath() + "?" + v.Encode(), nil
+}
+
+// MakeURL creates a signed URL for the method.
+func (u *URLSigner) MakeURL(method, bucket, path string, d time.Duration, headers map[string]string) (string, error) {
+	return u.Make(&SignParams{
+		Method:  method,
+		Headers: headers,
+		Bucket:  bucket,
+		Object:  path,
+	}, d)
 }
 
 // DownloadPath generates a signed path for downloading an object.
