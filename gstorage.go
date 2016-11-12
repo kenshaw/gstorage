@@ -170,7 +170,7 @@ func (u *URLSigner) Make(p *SignParams, d time.Duration) (string, error) {
 		return "", err
 	}
 
-	// create url values
+	// create query
 	v := url.Values{}
 	v.Set("GoogleAccessId", u.ClientEmail)
 	v.Set("Expires", strconv.FormatInt(p.Expiration.Unix(), 10))
