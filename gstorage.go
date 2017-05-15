@@ -88,7 +88,7 @@ func (p SignParams) ObjectPath() string {
 	return "/" + strings.Trim(p.Bucket, "/") + "/" + strings.TrimPrefix(p.Object, "/")
 }
 
-// String satisifies stringer returning the formatted string suitable for use
+// String satisfies stringer returning the formatted string suitable for use
 // with the URLSigner.
 func (p SignParams) String() string {
 	return p.Method + "\n" +
