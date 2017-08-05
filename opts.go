@@ -34,15 +34,15 @@ func GoogleServiceAccountCredentialsJSON(buf []byte) Option {
 		}
 
 		// load key
-		store := pemutil.Store{}
-		err = pemutil.PEM{[]byte(gsa.PrivateKey)}.Load(store)
+		s := pemutil.Store{}
+		err = s.Decode([]byte(gsa.PrivateKey))
 		if err != nil {
 			return err
 		}
 
 		// grab privKey
 		var ok bool
-		u.PrivateKey, ok = store[pemutil.RSAPrivateKey].(*rsa.PrivateKey)
+		u.PrivateKey, ok = s[pemutil.RSAPrivateKey].(*rsa.PrivateKey)
 		if !ok {
 			return errors.New("google service account credentials has an invalid private_key")
 		}
