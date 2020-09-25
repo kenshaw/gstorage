@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"io/ioutil"
 
-	"github.com/knq/jwt/gserviceaccount"
-	"github.com/knq/pemutil"
+	"github.com/kenshaw/jwt/gserviceaccount"
+	"github.com/kenshaw/pemutil"
 )
 
 // Option represents a URLSigner option.
