@@ -20,35 +20,26 @@ type Option func(*URLSigner) error
 // console: https://console.cloud.google.com/iam-admin/serviceaccounts/
 func GoogleServiceAccountCredentialsJSON(buf []byte) Option {
 	return func(u *URLSigner) error {
-		var err error
-
 		// load service account credentials
 		gsa, err := gserviceaccount.FromJSON(buf)
 		if err != nil {
 			return err
 		}
-
 		// simple check
 		if gsa.ClientEmail == "" || gsa.PrivateKey == "" {
 			return errors.New("google service accoount credentials missing client_email or private_key")
 		}
-
 		// load key
 		s := pemutil.Store{}
-		err = s.Decode([]byte(gsa.PrivateKey))
-		if err != nil {
+		if err = s.Decode([]byte(gsa.PrivateKey)); err != nil {
 			return err
 		}
-
 		// grab privKey
 		var ok bool
-		u.PrivateKey, ok = s[pemutil.RSAPrivateKey].(*rsa.PrivateKey)
-		if !ok {
+		if u.PrivateKey, ok = s[pemutil.RSAPrivateKey].(*rsa.PrivateKey); !ok {
 			return errors.New("google service account credentials has an invalid private_key")
 		}
-
 		u.ClientEmail = gsa.ClientEmail
-
 		return nil
 	}
 }
@@ -64,7 +55,6 @@ func GoogleServiceAccountCredentialsFile(path string) Option {
 		if err != nil {
 			return fmt.Errorf("could not read google service account credentials file: %v", err)
 		}
-
 		return GoogleServiceAccountCredentialsJSON(buf)(u)
 	}
 }

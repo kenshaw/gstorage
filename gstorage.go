@@ -20,8 +20,8 @@ const (
 	DefaultExpiration = 1 * time.Hour
 )
 
-// SignParams are the signing params for generating a signed URL.
-type SignParams struct {
+// SigningParams are the signing params for generating a signed URL.
+type SigningParams struct {
 	// BaseURL is the URL to use for building the URL. If not supplied, then
 	// DefaultBaseURL will be used instead.
 	BaseURL string
@@ -48,19 +48,11 @@ type SignParams struct {
 	Object string
 }
 
-// sortHeaders is the sort type for sorting headers.
-type sortHeaders []string
-
-func (s sortHeaders) Len() int           { return len(s) }
-func (s sortHeaders) Swap(i, j int)      { s[i], s[j] = s[j], s[i] }
-func (s sortHeaders) Less(i, j int) bool { return strings.Compare(s[i], s[j]) < 0 }
-
 // HeaderString sorts the headers in order, returning an ordered, usable string
 // for use with signing.
-func (p SignParams) HeaderString() string {
-	h := make(sortHeaders, len(p.Headers))
+func (p SigningParams) HeaderString() string {
+	h := make([]string, len(p.Headers))
 	headers := make(map[string]string)
-
 	var i int
 	for k, v := range p.Headers {
 		k = strings.TrimSpace(strings.ToLower(k))
@@ -70,27 +62,26 @@ func (p SignParams) HeaderString() string {
 		}
 		i++
 	}
-
 	if len(h) != 0 {
-		sort.Sort(h)
+		sort.Slice(h, func(i, j int) bool {
+			return strings.Compare(h[i], h[j]) < 0
+		})
 		for i, k := range h {
 			h[i] += ":" + strings.TrimSpace(headers[k])
 		}
-
 		return strings.Join(h, "\n") + "\n"
 	}
-
 	return ""
 }
 
 // ObjectPath returns the canonical path.
-func (p SignParams) ObjectPath() string {
+func (p SigningParams) ObjectPath() string {
 	return "/" + strings.Trim(p.Bucket, "/") + "/" + strings.TrimPrefix(p.Object, "/")
 }
 
 // String satisfies stringer returning the formatted string suitable for use
 // with the URLSigner.
-func (p SignParams) String() string {
+func (p SigningParams) String() string {
 	return p.Method + "\n" +
 		p.Hash + "\n" +
 		p.ContentType + "\n" +
@@ -108,38 +99,28 @@ type URLSigner struct {
 
 // NewURLSigner creates a new URLSigner
 func NewURLSigner(opts ...Option) (*URLSigner, error) {
-	var err error
-
 	u := &URLSigner{}
-
 	// apply opts
 	for _, o := range opts {
-		err = o(u)
-		if err != nil {
+		if err := o(u); err != nil {
 			return nil, err
 		}
 	}
-
 	return u, nil
 }
 
-// SignParams signs using the URLSigner.
-func (u *URLSigner) SignParams(p *SignParams) (string, error) {
-	var err error
-
+// SigningParams signs using the URLSigner.
+func (u *URLSigner) SigningParams(p *SigningParams) (string, error) {
 	// hash
 	h := crypto.SHA256.New()
-	_, err = h.Write([]byte(p.String()))
-	if err != nil {
+	if _, err := h.Write([]byte(p.String())); err != nil {
 		return "", err
 	}
-
 	// sign
 	sig, err := rsa.SignPKCS1v15(rand.Reader, u.PrivateKey, crypto.SHA256, h.Sum(nil))
 	if err != nil {
 		return "", err
 	}
-
 	// base64 encode
 	return b64.StdEncoding.EncodeToString(sig), nil
 }
@@ -147,7 +128,7 @@ func (u *URLSigner) SignParams(p *SignParams) (string, error) {
 // Sign creates the signature for the provided method, hash, contentType, bucket,
 // and path accordingly.
 func (u *URLSigner) Sign(method, hash, contentType, bucket, path string, headers map[string]string) (string, error) {
-	return u.SignParams(&SignParams{
+	return u.SigningParams(&SigningParams{
 		Method:      method,
 		Hash:        hash,
 		ContentType: contentType,
@@ -158,36 +139,32 @@ func (u *URLSigner) Sign(method, hash, contentType, bucket, path string, headers
 }
 
 // Make makes a URL for the specified signing params.
-func (u *URLSigner) Make(p *SignParams, d time.Duration) (string, error) {
+func (u *URLSigner) Make(p *SigningParams, d time.Duration) (string, error) {
 	// set default expiration if duration supplied
 	if d != 0 {
 		p.Expiration = time.Now().Add(d)
 	}
-
 	// create sig
-	sig, err := u.SignParams(p)
+	sig, err := u.SigningParams(p)
 	if err != nil {
 		return "", err
 	}
-
 	// create query
 	v := url.Values{}
 	v.Set("GoogleAccessId", u.ClientEmail)
 	v.Set("Expires", strconv.FormatInt(p.Expiration.Unix(), 10))
 	v.Set("Signature", sig)
-
 	// base
 	baseURL := p.BaseURL
 	if baseURL == "" {
 		baseURL = DefaultBaseURL
 	}
-
 	return baseURL + p.ObjectPath() + "?" + v.Encode(), nil
 }
 
 // MakeURL creates a signed URL for the method.
 func (u *URLSigner) MakeURL(method, bucket, path string, d time.Duration, headers map[string]string) (string, error) {
-	return u.Make(&SignParams{
+	return u.Make(&SigningParams{
 		Method:  method,
 		Headers: headers,
 		Bucket:  bucket,
